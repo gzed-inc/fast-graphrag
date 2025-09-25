@@ -129,7 +129,7 @@ class IGraphStorage(BaseGraphStorage[GTNode, GTEdge, GTId]):
                 self._graph.vs.find(name=source_name)  # type: ignore
             except ValueError:
                 # Source node doesn't exist, create it
-                print(f"Source node doesn't exist, creating it: {source_name}")
+                logger.info(f"Source node doesn't exist, creating it: {source_name}")
                 self._graph.add_vertex(name=source_name)  # type: ignore
 
             # Check if target node exists, create if not
@@ -137,7 +137,7 @@ class IGraphStorage(BaseGraphStorage[GTNode, GTEdge, GTId]):
                 self._graph.vs.find(name=target_name)  # type: ignore
             except ValueError:
                 # Target node doesn't exist, create it
-                print(f"Target node doesn't exist, creating it: {target_name}")
+                logger.info(f"Target node doesn't exist, creating it: {target_name}")
                 self._graph.add_vertex(name=target_name)  # type: ignore
 
             return self._graph.add_edge(  # type: ignore
