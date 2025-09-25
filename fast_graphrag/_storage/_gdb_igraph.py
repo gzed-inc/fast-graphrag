@@ -120,6 +120,26 @@ class IGraphStorage(BaseGraphStorage[GTNode, GTEdge, GTId]):
 
             return already_edge.index  # type: ignore
         else:
+            # Ensure source and target nodes exist before adding edge
+            source_name = edge.source
+            target_name = edge.target
+
+            # Check if source node exists, create if not
+            try:
+                self._graph.vs.find(name=source_name)  # type: ignore
+            except ValueError:
+                # Source node doesn't exist, create it
+                print(f"Source node doesn't exist, creating it: {source_name}")
+                self._graph.add_vertex(name=source_name)  # type: ignore
+
+            # Check if target node exists, create if not
+            try:
+                self._graph.vs.find(name=target_name)  # type: ignore
+            except ValueError:
+                # Target node doesn't exist, create it
+                print(f"Target node doesn't exist, creating it: {target_name}")
+                self._graph.add_vertex(name=target_name)  # type: ignore
+
             return self._graph.add_edge(  # type: ignore
                 **asdict(edge)
             ).index  # type: ignore
