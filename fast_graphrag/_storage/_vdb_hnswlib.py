@@ -109,9 +109,13 @@ class HNSWVectorStorage(BaseVectorStorage[GTId, GTEmbedding]):
         flattened_ids = ids.ravel()
         flattened_scores = scores.ravel()
 
+        # Get the maximum possible ID to determine the actual matrix width
+        max_id = max(flattened_ids) if len(flattened_ids) > 0 else 0
+        matrix_width = max(max_id + 1, self.size)
+
         scores = csr_matrix(
             (flattened_scores, (np.repeat(np.arange(len(ids)), top_k), flattened_ids)),
-            shape=(len(ids), self.size),
+            shape=(len(ids), matrix_width),
         )
 
         return scores
