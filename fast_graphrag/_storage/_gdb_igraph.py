@@ -277,7 +277,26 @@ class IGraphStorage(BaseGraphStorage[GTNode, GTEdge, GTId]):
             logger.info("Trying to score nodes in an empty graph.")
             return csr_matrix((1, 0))
 
-        reset_prob = initial_weights.toarray().flatten() if initial_weights is not None else None
+        reset_prob = None
+        if initial_weights is not None:
+            reset_vector = initial_weights.toarray().flatten()
+            current_vcount = self._graph.vcount()
+            if len(reset_vector) != current_vcount:
+                logger.warning(
+                    f"Reset vector length ({len(reset_vector)}) doesn't match graph node count ({current_vcount}). Adjusting."
+                )
+                if len(reset_vector) > current_vcount:
+                    reset_prob = reset_vector[:current_vcount]
+                else:
+                    reset_prob = np.zeros(current_vcount, dtype=np.float32)
+                    reset_prob[: len(reset_vector)] = reset_vector
+                # Normalize to ensure sum equals 1
+                if reset_prob.sum() > 0:
+                    reset_prob = reset_prob / reset_prob.sum()
+                else:
+                    reset_prob = np.ones(current_vcount, dtype=np.float32) / current_vcount
+            else:
+                reset_prob = reset_vector
 
         ppr_scores = self._graph.personalized_pagerank(  # type: ignore
             damping=self.config.ppr_damping, directed=False, reset=reset_prob
