@@ -189,31 +189,52 @@ class DefaultStateManagerService(BaseStateManagerService[TEntity, TRelation, THa
             return None
 
         try:
-            query_embeddings = await self.embedding_service.encode(
-                [f"{n}" for n in entities["named"]] + [f"[NONE] {n}" for n in entities["generic"]] + [query]
+          query_embeddings = await self.embedding_service.encode(
+            [f"{n}" for n in entities["named"]] + [f"[NONE] {n}" for n in entities["generic"]] + [query]
+          )
+          entity_scores: List[csr_matrix] = []
+          # Similarity-search over entities
+          if len(entities["named"]) > 0:
+            vdb_entity_scores_by_named_entity = await self._score_entities_by_vectordb(
+              query_embeddings=query_embeddings[: len(entities["named"])],
+              top_k=1,
+              threshold=self.query_similarity_score_threshold,
             )
-            entity_scores: List[csr_matrix] = []
-            # Similarity-search over entities
-            if len(entities["named"]) > 0:
-                vdb_entity_scores_by_named_entity = await self._score_entities_by_vectordb(
-                    query_embeddings=query_embeddings[: len(entities["named"])],
-                    top_k=1,
-                    threshold=self.query_similarity_score_threshold,
-                )
-                entity_scores.append(vdb_entity_scores_by_named_entity)
+            entity_scores.append(vdb_entity_scores_by_named_entity)
 
-            vdb_entity_scores_by_generic_entity_and_query = await self._score_entities_by_vectordb(
-                query_embeddings=query_embeddings[len(entities["named"]) :], top_k=20, threshold=0.5
-            )
-            entity_scores.append(vdb_entity_scores_by_generic_entity_and_query)
+          vdb_entity_scores_by_generic_entity_and_query = await self._score_entities_by_vectordb(
+            query_embeddings=query_embeddings[len(entities["named"]) :], top_k=20, threshold=0.5
+          )
+          entity_scores.append(vdb_entity_scores_by_generic_entity_and_query)
 
-            vdb_entity_scores = vstack(entity_scores).max(axis=0)
+          # Check if all matrices have the same number of columns before stacking
+          if len(entity_scores) > 1:
+            # Get the number of columns from each matrix
+            col_counts = [score.shape[1] for score in entity_scores]
+            max_cols = max(col_counts)
 
-            if isinstance(vdb_entity_scores, int) or vdb_entity_scores.nnz == 0:
-                return None
+            # Pad matrices to have the same number of columns
+            padded_scores = []
+            for score in entity_scores:
+              if score.shape[1] < max_cols:
+                # Create a padded matrix with zeros
+                from scipy.sparse import hstack, csr_matrix
+
+                padding = csr_matrix((score.shape[0], max_cols - score.shape[1]))
+                padded_score = hstack([score, padding])
+                padded_scores.append(padded_score)
+              else:
+                padded_scores.append(score)
+
+            vdb_entity_scores = vstack(padded_scores).max(axis=0)
+          else:
+            vdb_entity_scores = entity_scores[0].max(axis=0) if entity_scores else None
+
+          if isinstance(vdb_entity_scores, int) or vdb_entity_scores.nnz == 0:
+            return None
         except Exception as e:
-            logger.error(f"Error during information extraction and scoring for query entities {entities}.\n{e}")
-            raise e
+          logger.error(f"Error during information extraction and scoring for query entities {entities}.\n{e}")
+          raise e
 
         # Score entities
         try:
