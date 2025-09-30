@@ -26,7 +26,7 @@ class HNSWVectorStorageConfig:
 class HNSWVectorStorage(BaseVectorStorage[GTId, GTEmbedding]):
     RESOURCE_NAME = "hnsw_index_{}.bin"
     RESOURCE_METADATA_NAME = "hnsw_metadata.pkl"
-    INITIAL_MAX_ELEMENTS = 128000
+    INITIAL_MAX_ELEMENTS = 1000000
     config: HNSWVectorStorageConfig = field()  # type: ignore
     _index: Any = field(init=False, default=None)  # type: ignore
     _metadata: Dict[GTId, Dict[str, Any]] = field(default_factory=dict)
